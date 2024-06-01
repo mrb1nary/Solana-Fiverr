@@ -1,6 +1,7 @@
 import Navbar from "./components/Navbar"
 import Upload from "./components/Upload"
-import { BrowserRouter } from "react-router-dom"
+import TaskWrapper from "./utils/TaskWrapper"
+import { BrowserRouter, Routes, Route } from "react-router-dom"
 
 function App() {
   
@@ -9,7 +10,11 @@ function App() {
     <BrowserRouter>
       <div className="w-full h-full bg-gray-800 absolute">
         <Navbar />
-        <Upload />
+        <Routes>
+          <Route path="/" element={<Upload />} />
+          <Route path="/task/:id" element={<TaskWrapper />} />
+        </Routes>
+        
       </div>
     </BrowserRouter>
   )
