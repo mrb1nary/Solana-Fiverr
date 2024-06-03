@@ -103,6 +103,19 @@ router.post("/submission", middleware_1.workerMiddleware, (req, res) => __awaite
         }
         const amount = (Number(task.amount) / TOTAL_SUBMISSION).toString();
         const submission = yield prismaClient.$transaction((tx) => __awaiter(void 0, void 0, void 0, function* () {
+            const existingSubmission = yield tx.submission.findUnique({
+                where: {
+                    worker_id_task_id: {
+                        worker_id: Number(userId),
+                        task_id: Number(parsedBody.data.taskId)
+                    }
+                }
+            });
+            if (existingSubmission) {
+                return res.status(409).json({
+                    message: "Submission already exists for this worker and task."
+                });
+            }
             const submission = yield tx.submission.create({
                 data: {
                     option_id: Number(parsedBody.data.selection),
@@ -130,7 +143,7 @@ router.post("/submission", middleware_1.workerMiddleware, (req, res) => __awaite
         });
     }
     else {
-        res.status(200).json({
+        res.status(411).json({
             message: "Parsing body failed"
         });
     }
