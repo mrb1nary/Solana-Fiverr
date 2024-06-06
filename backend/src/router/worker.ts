@@ -9,6 +9,14 @@ const router= Router();
 
 const JWT_WORKER_SECRET = "mrb1naryworker";
 const prismaClient = new PrismaClient()
+prismaClient.$transaction(
+    async (prisma)=>{
+        
+    },{
+        maxWait: 5000,
+        timeout:10000,
+    }
+);
 const TOTAL_SUBMISSION = 100;
 
 

@@ -11,6 +11,15 @@ import "dotenv/config";
 const router= Router();
 const prismaClient = new PrismaClient;
 
+prismaClient.$transaction(
+    async (prisma)=>{
+        //Code in txn
+    },{
+        maxWait: 5000,
+        timeout:10000,
+    }
+)
+
 const JWT_SECRET="mrb1nary123";
 
 const s3Client = new S3Client({

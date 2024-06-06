@@ -27,11 +27,15 @@ export const Page: React.FC<PageProps> = ({ params: { taskId } }) => {
   const [taskDetails, setTaskDetails] = useState<{ title?: string }>({});
 
   useEffect(() => {
-    getTaskDetails(taskId!)
+    
+    
+      getTaskDetails(taskId!)
       .then((data) => {
         setResult(data.result);
         setTaskDetails(data.taskDetails);
       });
+    
+    
   }, [taskId]);
 
   return (

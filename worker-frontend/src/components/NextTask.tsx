@@ -40,14 +40,14 @@ export default function NextTask(){
 
     if(loading){
         return (
-            <h2>Please wait. Next Task is Loading</h2>
+            <h2 className="h-screen flex flex-col justify-center items-center text-2xl text-white">Please wait. Next Task is Loading</h2>
         )
     }
 
     if(!task){
         
         return (
-            <h2 className="text-white">
+            <h2 className="h-screen flex justify-center items-center text-2xl text-white">
                 No Tasks at the moment
             </h2>
         )
@@ -57,9 +57,10 @@ export default function NextTask(){
     return (
         <>
     <div>
-        <div className='text-2xl pt-20 flex justify-center text-white'>
+        <div className='text-2xl pt-20 flex justify-center items-center text-white'>
         {task.title}
     </div>
+        <p className="text-2xl flex justify-center items-center text-red-200">Task ID ${task.id}</p>
     <div className='flex justify-center pt-8 text-white'>
         {task.options.map(option => (
         <Option onSelect={async()=>{
