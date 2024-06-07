@@ -1,14 +1,17 @@
-
+import { PublicKey, SystemProgram, Transaction } from "@solana/web3.js";
 import  UploadImage  from "./UploadImage";
 import { BACKEND_URL } from "../utils/utils";
 import axios from "axios";
 import { useNavigate, Router } from "react-router";
 import { useState } from "react";
+import { useConnection, useWallet } from "@solana/wallet-adapter-react";
 
 export default function Upload(){
     const [images, setImages] = useState<string[]>([]);
     const [title, setTitle] = useState("");
-    const txSignature = "huihuihui";
+    const [txSignature, setTxSignature] = useState("");
+    const {publicKey, sendTransaction} = useWallet();
+    const {connection} = useConnection();
     const navigate= useNavigate();
     
 
@@ -29,9 +32,30 @@ export default function Upload(){
         <Router />
     }
 
+    async function makePayment(){
+        const transaction = new Transaction().add(
+            SystemProgram.transfer({
+                fromPubkey: publicKey!,
+                toPubkey: new PublicKey("4zsDjbdc89affo5mTbeDpSgpermTX7Ef5Cgf7TrBxHUm"),
+                lamports: 10000000,
+            })
+        );
+
+        const {
+            context:{slot:minContextSlot},
+            value:{blockhash, lastValidBlockHeight}
+        } = await connection.getLatestBlockhashAndContext();
+
+        const signature = await sendTransaction(transaction, connection, {minContextSlot});
+
+        await connection.confirmTransaction({blockhash, lastValidBlockHeight, signature});
+        setTxSignature(signature);
+        }
     
 
-    return <div className="flex justify-center">
+    
+
+    return (<div className="flex justify-center">
         <div className="max-w-screen-lg w-full">
             <div className="text-2xl text-left pt-20 w-full pl-4 text-white">
                 Create a task
@@ -63,5 +87,5 @@ export default function Upload(){
         </div>
         
       </div>
-    </div>
+    </div>)
 }
