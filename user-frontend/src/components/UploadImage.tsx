@@ -28,7 +28,7 @@ export default function UploadImage({ onImageAdded, image }: {
             formData.set("X-Amz-Signature", response.data.fields["X-Amz-Signature"]);
             formData.set("X-Amz-Algorithm", response.data.fields["X-Amz-Algorithm"]);
             formData.append("file", file);
-            const awsResponse = await axios.post(presignedUrl, formData);
+            await axios.post(presignedUrl, formData);
 
             onImageAdded(`${CLOUDFRONT_URL}/${response.data.fields["key"]}`);
         } catch(e) {

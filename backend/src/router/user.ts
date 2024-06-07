@@ -1,12 +1,17 @@
-import { createPresignedPost } from '@aws-sdk/s3-presigned-post'
-import { GetObjectCommand, S3Client } from "@aws-sdk/client-s3";
-import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import { createPresignedPost } from '@aws-sdk/s3-presigned-post';
+import nacl from "tweetnacl";
+import { S3Client } from "@aws-sdk/client-s3";
 import { PrismaClient } from "@prisma/client";
 import { Router } from "express";
 import jwt from "jsonwebtoken";
 import { authMiddleware } from "../middleware";
 import { createTaskInput } from '../types';
 import "dotenv/config";
+import { Connection, PublicKey} from '@solana/web3.js';
+
+const connection = new Connection(process.env.RPC_URL ?? "");
+
+const PARENT_WALLET = "4zsDjbdc89affo5mTbeDpSgpermTX7Ef5Cgf7TrBxHUm";
 
 const router= Router();
 const prismaClient = new PrismaClient;
@@ -103,6 +108,36 @@ router.post("/task", authMiddleware, async (req, res)=>{
         })
     }
 
+    const user = await prismaClient.user.findFirst({
+        where: {
+            id: userId
+        }
+    })
+
+    const transaction = await connection.getTransaction(parseData.data.signature, {
+        maxSupportedTransactionVersion: 1
+    });
+
+    console.log(transaction);
+
+    if ((transaction?.meta?.postBalances[1] ?? 0) - (transaction?.meta?.preBalances[1] ?? 0) !== 100000000) {
+        return res.status(411).json({
+            message: "Transaction signature/amount incorrect"
+        })
+    }
+
+    if (transaction?.transaction.message.getAccountKeys().get(1)?.toString() !== PARENT_WALLET) {
+        return res.status(411).json({
+            message: "Transaction sent to wrong address"
+        })
+    }
+
+    if (transaction?.transaction.message.getAccountKeys().get(0)?.toString() !== user?.address) {
+        return res.status(411).json({
+            message: "Transaction sent to wrong address"
+        })
+    }
+
     let response = await prismaClient.$transaction(async tx =>{
         const response = await tx.task.create({
             data:{
@@ -150,11 +185,26 @@ router.get("/presignedUrl", authMiddleware, async (req, res) => {
 })
 
 router.post("/signin", async (req, res)=>{
-    const hardcodedWallet = "FFqp5uGm2mvnwmrkT945iQQF3MADzoH6a9rCZAi9xY6Y"
+    const {publicKey, signature} = req.body;
+    const message = new TextEncoder().encode("Sign in to Solana Fiverr");
+
+    //Verify the singature
+
+    const result = nacl.sign.detached.verify(
+        message,
+        new Uint8Array(signature.data),
+        new PublicKey(publicKey).toBytes(),
+      );
+    
+    if(!result){
+        return res.status(401).json({
+            message: "Verification failed"
+        })
+    }
 
     const existingUser = await prismaClient.user.findFirst({
         where:{
-            address: hardcodedWallet
+            address: publicKey
         }
     })
 
@@ -167,7 +217,7 @@ router.post("/signin", async (req, res)=>{
     } else {
         const user = await prismaClient.user.create({
             data:{
-                address: hardcodedWallet
+                address: publicKey
             }
         })
         const token = jwt.sign({

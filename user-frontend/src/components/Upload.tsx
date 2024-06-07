@@ -2,7 +2,7 @@ import { PublicKey, SystemProgram, Transaction } from "@solana/web3.js";
 import  UploadImage  from "./UploadImage";
 import { BACKEND_URL } from "../utils/utils";
 import axios from "axios";
-import { useNavigate, Router } from "react-router";
+import { useNavigate} from "react-router";
 import { useState } from "react";
 import { useConnection, useWallet } from "@solana/wallet-adapter-react";
 
@@ -27,31 +27,32 @@ export default function Upload(){
                 "Authorization": localStorage.getItem("token")
             }
         })
-        <Router>
-            navigate(`/task/${response.data.id}`);
-        <Router />
+        
+        navigate(`/task/${response.data.id}`);
+        
     }
 
-    async function makePayment(){
+    async function makePayment() {
+
         const transaction = new Transaction().add(
             SystemProgram.transfer({
                 fromPubkey: publicKey!,
                 toPubkey: new PublicKey("4zsDjbdc89affo5mTbeDpSgpermTX7Ef5Cgf7TrBxHUm"),
-                lamports: 10000000,
+                lamports: 100000000,
             })
         );
 
         const {
-            context:{slot:minContextSlot},
-            value:{blockhash, lastValidBlockHeight}
+            context: { slot: minContextSlot },
+            value: { blockhash, lastValidBlockHeight }
         } = await connection.getLatestBlockhashAndContext();
 
-        const signature = await sendTransaction(transaction, connection, {minContextSlot});
+        const signature = await sendTransaction(transaction, connection, { minContextSlot });
 
-        await connection.confirmTransaction({blockhash, lastValidBlockHeight, signature});
+        await connection.confirmTransaction({ blockhash, lastValidBlockHeight, signature });
         setTxSignature(signature);
-        }
     
+    }
 
     
 
@@ -81,7 +82,7 @@ export default function Upload(){
         </div>
 
         <div className="flex justify-center">
-            <button onClick={onSubmit} type="button" className="mt-4 text-white bg-gray-800 hover:bg-gray-900 focus:outline-none focus:ring-4 focus:ring-gray-300 font-medium rounded-full text-sm px-5 py-2.5 me-2 mb-2 dark:bg-gray-800 dark:hover:bg-gray-700 dark:focus:ring-gray-700 dark:border-gray-700">
+            <button onClick={txSignature ? onSubmit : makePayment} type="button" className="mt-4 text-white bg-gray-800 hover:bg-gray-900 focus:outline-none focus:ring-4 focus:ring-gray-300 font-medium rounded-full text-sm px-5 py-2.5 me-2 mb-2 dark:bg-gray-800 dark:hover:bg-gray-700 dark:focus:ring-gray-700 dark:border-gray-700">
                 {txSignature ? "Submit Task" : "Pay 0.1 SOL"}
             </button>
         </div>

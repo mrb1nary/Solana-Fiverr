@@ -21,6 +21,11 @@ const types_1 = require("../types");
 const router = (0, express_1.Router)();
 const JWT_WORKER_SECRET = "mrb1naryworker";
 const prismaClient = new client_1.PrismaClient();
+prismaClient.$transaction((prisma) => __awaiter(void 0, void 0, void 0, function* () {
+}), {
+    maxWait: 5000,
+    timeout: 10000,
+});
 const TOTAL_SUBMISSION = 100;
 router.post("/payout", middleware_1.workerMiddleware, (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     //@ts-ignore
