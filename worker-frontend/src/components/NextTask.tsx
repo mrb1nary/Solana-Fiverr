@@ -1,6 +1,7 @@
 import axios from "axios";
 import {BACKEND_URL} from "../utils/utils"
 import { useEffect, useState } from "react";
+import { useWallet } from "@solana/wallet-adapter-react";
 
 export default function NextTask(){
 
@@ -18,6 +19,7 @@ export default function NextTask(){
 
     const [task, setTask] = useState<Task | null>()
     const [loading, setLoading] = useState(false)
+    const {publicKey} = useWallet();
 
     useEffect(() => {
         setLoading(true);
@@ -44,6 +46,12 @@ export default function NextTask(){
         )
     }
 
+    if(!publicKey){
+        return(
+            <h2 className="h-screen flex flex-col justify-center items-center text-3xl text-red-400">You are not signed in</h2>
+        )
+    }
+
     if(!task){
         
         return (
@@ -52,6 +60,8 @@ export default function NextTask(){
             </h2>
         )
     }
+    
+    
     
     
     return (

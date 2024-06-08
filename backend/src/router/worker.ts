@@ -4,8 +4,12 @@ import jwt from "jsonwebtoken";
 import { workerMiddleware } from "../middleware";
 import { getNextTask } from "../dbFunctions";
 import { createSubmissionInput } from "../types";
+import nacl from "tweetnacl";
+import { decode } from "bs58";
+import { Connection, Keypair, PublicKey, SystemProgram, Transaction, sendAndConfirmRawTransaction, sendAndConfirmTransaction } from "@solana/web3.js";
 
 const router= Router();
+const connection = new Connection(process.env.RPC_URL ?? "");
 
 const JWT_WORKER_SECRET = "mrb1naryworker";
 const prismaClient = new PrismaClient()
@@ -18,6 +22,7 @@ prismaClient.$transaction(
     }
 );
 const TOTAL_SUBMISSION = 100;
+const TOTAL_DECIMALS = 1000_000
 
 
 router.post("/payout", workerMiddleware, async (req,res)=>{
@@ -35,13 +40,45 @@ router.post("/payout", workerMiddleware, async (req,res)=>{
 
     const address = worker.address;
 
-    const txnId = "0x123ne"
-
     if(worker.pending_amount <= 0){
         return res.status(200).json({
             message: "You have no balance to withdraw"
         })
     }
+    
+    const transaction = new Transaction().add(
+        SystemProgram.transfer({
+            fromPubkey: new PublicKey("FFqp5uGm2mvnwmrkT945iQQF3MADzoH6a9rCZAi9xY6Y"),
+            toPubkey: new PublicKey(worker.address),
+            lamports: 1000_000_000 * worker.pending_amount / TOTAL_DECIMALS,
+        })
+    );
+
+    // console.log(worker.address)
+    // console.log(transaction);
+
+    const secretKey = decode("22a615BHVywcmw7n2irrRpKztifBWcZjb9Wv2HsmVKBFuQndQV9tPaYmJU3HcJvxBAvCrWb9yQAaKLwkmzij5ew6");
+
+    console.log(secretKey);
+    const keypair = Keypair.fromSecretKey(secretKey);
+
+    let signature = "";
+    try {
+        signature = await sendAndConfirmTransaction(
+            connection,
+            transaction,
+            [keypair],
+        );
+    
+     } catch(e) {
+        console.log(e)
+        return res.json({
+            message: "Transaction failed"
+        })
+     }
+
+     console.log(signature);
+    
 
     await prismaClient.$transaction(async tx=>{
         await tx.worker.update({
@@ -62,7 +99,7 @@ router.post("/payout", workerMiddleware, async (req,res)=>{
             data:{
                 user_id: Number(userId),
                 amount: worker.locked_amount,
-                signature: txnId,
+                signature: signature,
                 status: "Processing"
             }
         })
@@ -92,7 +129,7 @@ router.get("/balance", workerMiddleware, async (req, res)=>{
         })
     }else{
         res.status(200).json({
-            pendingAmount: worker?.pending_amount,
+            pendingAmount: worker?.pending_amount / TOTAL_DECIMALS,
             lockedAmount: worker?.locked_amount
         })
 
@@ -193,11 +230,26 @@ router.get("/nextTask", workerMiddleware, async (req, res)=>{
 })
 
 router.post("/signin", async (req, res)=>{
-    const hardcodedWallet = "FFqp5uGm2mvnwmrkT945iQQF3MADzoH6a9rCZAi9xY6Y"
+    const {publicKey, signature} = req.body;
+    const message = new TextEncoder().encode("Sign in to Solana Fiverr as worker");
+
+    //Verify the singature
+
+    const result = nacl.sign.detached.verify(
+        message,
+        new Uint8Array(signature.data),
+        new PublicKey(publicKey).toBytes(),
+      );
+    
+    if(!result){
+        return res.status(401).json({
+            message: "Verification failed"
+        })
+    }
 
     const existingUser = await prismaClient.worker.findFirst({
         where:{
-            address: hardcodedWallet
+            address: publicKey
         }
     })
 
@@ -210,7 +262,7 @@ router.post("/signin", async (req, res)=>{
     } else {
         const user = await prismaClient.worker.create({
             data:{
-                address: hardcodedWallet,
+                address: publicKey,
                 pending_amount: 0,
                 locked_amount: 0
             }

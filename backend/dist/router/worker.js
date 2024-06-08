@@ -11,6 +11,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
+var _a;
 Object.defineProperty(exports, "__esModule", { value: true });
 const client_1 = require("@prisma/client");
 const express_1 = require("express");
@@ -18,7 +19,11 @@ const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const middleware_1 = require("../middleware");
 const dbFunctions_1 = require("../dbFunctions");
 const types_1 = require("../types");
+const tweetnacl_1 = __importDefault(require("tweetnacl"));
+const bs58_1 = require("bs58");
+const web3_js_1 = require("@solana/web3.js");
 const router = (0, express_1.Router)();
+const connection = new web3_js_1.Connection((_a = process.env.RPC_URL) !== null && _a !== void 0 ? _a : "");
 const JWT_WORKER_SECRET = "mrb1naryworker";
 const prismaClient = new client_1.PrismaClient();
 prismaClient.$transaction((prisma) => __awaiter(void 0, void 0, void 0, function* () {
@@ -27,6 +32,7 @@ prismaClient.$transaction((prisma) => __awaiter(void 0, void 0, void 0, function
     timeout: 10000,
 });
 const TOTAL_SUBMISSION = 100;
+const TOTAL_DECIMALS = 1000000;
 router.post("/payout", middleware_1.workerMiddleware, (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     //@ts-ignore
     const userId = req.userId;
@@ -39,12 +45,32 @@ router.post("/payout", middleware_1.workerMiddleware, (req, res) => __awaiter(vo
         });
     }
     const address = worker.address;
-    const txnId = "0x123ne";
     if (worker.pending_amount <= 0) {
         return res.status(200).json({
             message: "You have no balance to withdraw"
         });
     }
+    const transaction = new web3_js_1.Transaction().add(web3_js_1.SystemProgram.transfer({
+        fromPubkey: new web3_js_1.PublicKey("FFqp5uGm2mvnwmrkT945iQQF3MADzoH6a9rCZAi9xY6Y"),
+        toPubkey: new web3_js_1.PublicKey(worker.address),
+        lamports: 1000000000 * worker.pending_amount / TOTAL_DECIMALS,
+    }));
+    // console.log(worker.address)
+    // console.log(transaction);
+    const secretKey = (0, bs58_1.decode)("22a615BHVywcmw7n2irrRpKztifBWcZjb9Wv2HsmVKBFuQndQV9tPaYmJU3HcJvxBAvCrWb9yQAaKLwkmzij5ew6");
+    console.log(secretKey);
+    const keypair = web3_js_1.Keypair.fromSecretKey(secretKey);
+    let signature = "";
+    try {
+        signature = yield (0, web3_js_1.sendAndConfirmTransaction)(connection, transaction, [keypair]);
+    }
+    catch (e) {
+        console.log(e);
+        return res.json({
+            message: "Transaction failed"
+        });
+    }
+    console.log(signature);
     yield prismaClient.$transaction((tx) => __awaiter(void 0, void 0, void 0, function* () {
         yield tx.worker.update({
             where: {
@@ -63,7 +89,7 @@ router.post("/payout", middleware_1.workerMiddleware, (req, res) => __awaiter(vo
             data: {
                 user_id: Number(userId),
                 amount: worker.locked_amount,
-                signature: txnId,
+                signature: signature,
                 status: "Processing"
             }
         });
@@ -89,13 +115,13 @@ router.get("/balance", middleware_1.workerMiddleware, (req, res) => __awaiter(vo
     }
     else {
         res.status(200).json({
-            pendingAmount: worker === null || worker === void 0 ? void 0 : worker.pending_amount,
+            pendingAmount: (worker === null || worker === void 0 ? void 0 : worker.pending_amount) / TOTAL_DECIMALS,
             lockedAmount: worker === null || worker === void 0 ? void 0 : worker.locked_amount
         });
     }
 }));
 router.post("/submission", middleware_1.workerMiddleware, (req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    var _a;
+    var _b;
     // @ts-ignore
     const userId = req.userId;
     const parsedBody = types_1.createSubmissionInput.safeParse(req.body);
@@ -141,7 +167,7 @@ router.post("/submission", middleware_1.workerMiddleware, (req, res) => __awaite
             });
             return submission;
         }));
-        const nextTask = (_a = yield (0, dbFunctions_1.getNextTask)(Number(userId))) !== null && _a !== void 0 ? _a : "";
+        const nextTask = (_b = yield (0, dbFunctions_1.getNextTask)(Number(userId))) !== null && _b !== void 0 ? _b : "";
         res.json({
             nextTask,
             amount
@@ -168,10 +194,18 @@ router.get("/nextTask", middleware_1.workerMiddleware, (req, res) => __awaiter(v
     }
 }));
 router.post("/signin", (req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    const hardcodedWallet = "FFqp5uGm2mvnwmrkT945iQQF3MADzoH6a9rCZAi9xY6Y";
+    const { publicKey, signature } = req.body;
+    const message = new TextEncoder().encode("Sign in to Solana Fiverr as worker");
+    //Verify the singature
+    const result = tweetnacl_1.default.sign.detached.verify(message, new Uint8Array(signature.data), new web3_js_1.PublicKey(publicKey).toBytes());
+    if (!result) {
+        return res.status(401).json({
+            message: "Verification failed"
+        });
+    }
     const existingUser = yield prismaClient.worker.findFirst({
         where: {
-            address: hardcodedWallet
+            address: publicKey
         }
     });
     if (existingUser) {
@@ -183,7 +217,7 @@ router.post("/signin", (req, res) => __awaiter(void 0, void 0, void 0, function*
     else {
         const user = yield prismaClient.worker.create({
             data: {
-                address: hardcodedWallet,
+                address: publicKey,
                 pending_amount: 0,
                 locked_amount: 0
             }

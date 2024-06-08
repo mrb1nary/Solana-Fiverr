@@ -142,7 +142,7 @@ router.post("/task", authMiddleware, async (req, res)=>{
         const response = await tx.task.create({
             data:{
                 title: parseData.data.title ?? "Click the best thumbnail",
-                amount: Number(1 * 1000_000_000),
+                amount: Number(0.1 * 1000_000_000),
                 signature: parseData.data.signature,
                 user_id: userId
             }

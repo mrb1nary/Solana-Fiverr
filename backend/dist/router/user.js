@@ -126,7 +126,7 @@ router.post("/task", middleware_1.authMiddleware, (req, res) => __awaiter(void 0
         const response = yield tx.task.create({
             data: {
                 title: (_h = parseData.data.title) !== null && _h !== void 0 ? _h : "Click the best thumbnail",
-                amount: Number(1 * 1000000000),
+                amount: Number(0.1 * 1000000000),
                 signature: parseData.data.signature,
                 user_id: userId
             }
