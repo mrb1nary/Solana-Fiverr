@@ -102,7 +102,7 @@ function Option({imageUrl, onSelect }: {
     onSelect: () => void;
     }) {
         return <div>
-        <img onClick={onSelect} className={"p-2 w-96 rounded-md"} src={imageUrl} />
+        <img onClick={onSelect} className={"p-2 w-96 max-h-72 rounded-md"} src={imageUrl} />
         </div>
     }
 }
